@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Hash;
  *     type="oauth2",
  *     @OA\Flow(
  *         flow="password",
- *         tokenUrl="http://localhost:8000/api/login",
- *         refreshUrl="http://localhost:8000/api/login",
+ *         tokenUrl="https://om-pay-xqip.onrender.com/api/login",
+ *         refreshUrl="https://om-pay-xqip.onrender.com/api/login",
  *         scopes={}
  *     )
  * )
