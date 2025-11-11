@@ -31,6 +31,11 @@ return [
                 'docs_json' => 'api-docs.json',
 
                 /*
+                 * Absolute path to directory where to export views
+                 */
+                'views' => base_path('resources/views/vendor/l5-swagger'),
+
+                /*
                  * File name of the generated YAML documentation file
                  */
                 'docs_yaml' => 'api-docs.yaml',

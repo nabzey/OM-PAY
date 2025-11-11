@@ -21,6 +21,14 @@ FROM php:8.3-fpm-alpine
 RUN apk add --no-cache postgresql-dev postgresql-client \
     && docker-php-ext-install pdo pdo_pgsql
 
+# Installer les extensions nécessaires pour production
+RUN apk add --no-cache \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
+
 # Créer un utilisateur non-root
 RUN addgroup -g 1000 laravel && adduser -G laravel -g laravel -s /bin/sh -D laravel
 
@@ -44,11 +52,18 @@ RUN mkdir -p storage/framework/{cache,data,sessions,testing,views} \
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Créer les répertoires nécessaires et définir les permissions
+RUN mkdir -p storage/framework/{cache,data,sessions,testing,views} \
+    && mkdir -p storage/logs \
+    && mkdir -p bootstrap/cache \
+    && chown -R laravel:laravel /var/www/html \
+    && chmod -R 775 storage bootstrap/cache
+
 # Passer à l'utilisateur non-root
 USER laravel
 
-# Exposer le port 8000
-EXPOSE 8000
+# Exposer le port 10000 (port par défaut de Render)
+EXPOSE 10000
 
-# Commande par défaut
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Commande par défaut pour production
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
