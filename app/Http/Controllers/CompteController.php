@@ -9,18 +9,6 @@ use App\Services\CompteService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
-/**
- * @OA\Info(
- *     title="API Comptes",
- *     version="1.0.0",
- *     description="API pour la gestion des comptes"
- * )
- *
- * @OA\Server(
- *     url="http://localhost:8000",
- *     description="Serveur de développement"
- * )
- */
 class CompteController extends Controller
 {
     protected CompteService $compteService;

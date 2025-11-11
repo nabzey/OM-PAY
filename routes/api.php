@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Routes publiques (pas besoin d'authentification)
-Route::post('/register', [CompteController::class, 'store']);
+Route::post('/comptes', [CompteController::class, 'store']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/oauth/token', function () {
     // Route pour Passport OAuth2

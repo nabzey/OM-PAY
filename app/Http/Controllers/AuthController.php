@@ -9,13 +9,24 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 /**
+ * @OA\Info(
+ *     title="API Orange Money",
+ *     version="1.0.0",
+ *     description="API pour la gestion des comptes Orange Money"
+ * )
+ *
+ * @OA\Server(
+ *     url="http://localhost:8000",
+ *     description="Serveur de développement"
+ * )
+ *
  * @OA\SecurityScheme(
  *     securityScheme="passport",
  *     type="oauth2",
  *     @OA\Flow(
  *         flow="password",
- *         tokenUrl="https://om-pay-xqip.onrender.com/api/login",
- *         refreshUrl="https://om-pay-xqip.onrender.com/api/login",
+ *         tokenUrl="http://localhost:8000/api/login",
+ *         refreshUrl="http://localhost:8000/api/login",
  *         scopes={}
  *     )
  * )
