@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=caboose.proxy.rlwy.net
+      - DB_PORT=17606
+      - DB_DATABASE=railway
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=uQOlKgBhSMiHkiyMyJbuQuWhmYewYOIL
+    networks:
+      - laravel
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - .:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - laravel
+
+networks:
+  laravel:
+    driver: bridge
