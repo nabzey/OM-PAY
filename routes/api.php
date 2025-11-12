@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompteController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,23 +19,16 @@ use Illuminate\Support\Facades\Route;
 
 // Routes publiques (pas besoin d'authentification)
 Route::post('/comptes', [CompteController::class, 'store']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/oauth/token', function () {
-    // Route pour Passport OAuth2
-    return response()->json(['message' => 'Use /api/login for authentication']);
-});
+Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 
-// Routes protégées (nécessitent authentification OAuth2)
+// Routes protégées (nécessitent authentification Bearer)
 Route::middleware('auth:api')->group(function () {
-    // Authentification
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/client', [AuthController::class, 'client']);
-
-    // Gestion des comptes (sauf création qui est publique)
-    Route::get('/comptes', [CompteController::class, 'index']);
-    Route::get('/comptes/{compte}', [CompteController::class, 'show']);
-    Route::put('/comptes/{compte}', [CompteController::class, 'update']);
-    Route::delete('/comptes/{compte}', [CompteController::class, 'destroy']);
+    // Transactions
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/transactions/{reference}', [TransactionController::class, 'show']);
+    Route::post('/paiements', [TransactionController::class, 'effectuerPaiement']);
+    Route::post('/transferts', [TransactionController::class, 'effectuerTransfert']);
 });
 
 // Ancienne route (pour compatibilité)

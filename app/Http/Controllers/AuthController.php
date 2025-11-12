@@ -7,155 +7,163 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\AuthService;
+
+/**
+ * @OA\Info(
+ *     title="API Orange Money",
+ *     version="1.0.0",
+ *     description="API complète pour le système de paiement Orange Money avec authentification OTP"
+ * )
+ *
+ * @OA\Server(
+ *     url="http://localhost:8001",
+ *     description="Serveur de développement"
+ * )
+ *
+ * @OA\Components(
+ *     @OA\SecurityScheme(
+ *         securityScheme="bearerAuth",
+ *         type="http",
+ *         scheme="bearer",
+ *         description="Token d'accès Bearer obtenu via OTP"
+ *     )
+ * )
+ */
 
 
 class AuthController extends Controller
 {
     /**
      * @OA\Post(
-     *     path="/api/login",
-     *     summary="Connexion utilisateur",
+     *     path="/api/send-otp",
+     *     summary="Envoyer un OTP par SMS pour authentification",
+     *     description="Envoie un code OTP de 6 chiffres par SMS au numéro fourni. L'OTP est valide pendant 5 minutes.",
      *     tags={"Authentification"},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"email", "password"},
-     *             @OA\Property(property="email", type="string", format="email", example="user@example.com"),
-     *             @OA\Property(property="password", type="string", example="password123")
+     *             required={"telephone"},
+     *             @OA\Property(property="telephone", type="string", format="phone", example="+221771234567", description="Numéro de téléphone sénégalais au format international")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Connexion réussie",
+     *         description="OTP envoyé avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="OTP envoyé avec succès")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Erreur d'envoi ou numéro invalide",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Erreur lors de l'envoi de l'OTP")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Données de requête invalides",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     )
+     * )
+     */
+    public function sendOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'telephone' => ['required', 'string', 'regex:/^\+221(77|78|70|76|75)\d{7}$/']
+        ], [
+            'telephone.regex' => 'Le numéro de téléphone doit être au format sénégalais (+221 + 77/78/70/76/75 + 7 chiffres, total 9 chiffres après +221).',
+        ]);
+
+        $authService = app(\App\Services\AuthService::class);
+
+        if ($authService->envoyerOtp($request->telephone)) {
+            return response()->json([
+                'message' => 'OTP envoyé avec succès'
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Erreur lors de l\'envoi de l\'OTP'
+        ], 400);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/verify-otp",
+     *     summary="Vérifier l'OTP et obtenir un token d'accès",
+     *     description="Vérifie l'OTP fourni et retourne un token d'accès Bearer si l'authentification réussit.",
+     *     tags={"Authentification"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"telephone", "otp"},
+     *             @OA\Property(property="telephone", type="string", format="phone", example="+221771234567", description="Numéro de téléphone utilisé pour l'envoi de l'OTP"),
+     *             @OA\Property(property="otp", type="string", example="123456", description="Code OTP de 6 chiffres reçu par SMS")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Authentification réussie",
      *         @OA\JsonContent(
      *             @OA\Property(property="token_type", type="string", example="Bearer"),
-     *             @OA\Property(property="expires_in", type="integer", example=31536000),
-     *             @OA\Property(property="access_token", type="string"),
-     *             @OA\Property(property="refresh_token", type="string")
+     *             @OA\Property(property="expires_in", type="integer", example=31536000, description="Durée de validité du token en secondes"),
+     *             @OA\Property(property="access_token", type="string", description="Token d'accès Bearer"),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="nom", type="string"),
+     *                 @OA\Property(property="email", type="string"),
+     *                 @OA\Property(property="telephone", type="string"),
+     *                 @OA\Property(property="type_compte", type="string"),
+     *                 @OA\Property(property="statut_compte", type="string")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Identifiants invalides"
+     *         description="OTP invalide ou expiré",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="OTP invalide ou expiré")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Données de requête invalides",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
      *     )
      * )
      */
-    public function login(Request $request): JsonResponse
+    public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
+            'telephone' => ['required', 'string', 'regex:/^\+221(77|78|70|76|75)\d{7}$/'],
+            'otp' => ['required', 'string', 'size:6'],
+        ], [
+            'telephone.regex' => 'Le numéro de téléphone doit être au format sénégalais (+221 + 77/78/70/76/75 + 7 chiffres, total 9 chiffres après +221).',
+            'otp.required' => 'Le code OTP est obligatoire.',
+            'otp.size' => 'Le code OTP doit contenir exactement 6 chiffres.',
         ]);
 
-        $compte = Compte::where('email', $request->email)->first();
+        $authService = app(\App\Services\AuthService::class);
+        $compte = $authService->verifierOtp($request->telephone, $request->otp);
 
-        if (!$compte || !Hash::check($request->password, $compte->password)) {
+        if (!$compte) {
             return response()->json([
-                'message' => 'Identifiants invalides'
+                'message' => 'OTP invalide ou expiré'
             ], 401);
         }
 
-        // Générer le token d'accès
-        $token = $compte->createToken('Orange Money API')->accessToken;
+        $tokenData = $authService->genererTokenAcces($compte);
 
-        return response()->json([
-            'token_type' => 'Bearer',
-            'expires_in' => 31536000, // 1 an
-            'access_token' => $token,
-            'user' => [
-                'id' => $compte->id,
-                'nom' => $compte->nom,
-                'email' => $compte->email,
-                'telephone' => $compte->telephone,
-                'type_compte' => $compte->type_compte,
-                'statut_compte' => $compte->statut_compte,
-            ]
-        ]);
+        return response()->json($tokenData);
     }
 
-    /**
-     * @OA\Post(
-     *     path="/api/logout",
-     *     summary="Déconnexion utilisateur",
-     *     tags={"Authentification"},
-     *     security={{"passport": {}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Déconnexion réussie",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Déconnexion réussie")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Non authentifié"
-     *     )
-     * )
-     */
-    public function logout(Request $request): JsonResponse
-    {
-        $request->user()->token()->revoke();
 
-        return response()->json([
-            'message' => 'Déconnexion réussie'
-        ]);
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/client",
-     *     summary="Informations du client connecté",
-     *     tags={"Authentification"},
-     *     security={{"passport": {}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Informations client",
-     *         @OA\JsonContent(ref="#/components/schemas/Compte")
-     *     ),
-     *     @OA\Response(
-     *         response=401,
-     *         description="Non authentifié"
-     *     )
-     * )
-     */
-    public function client(Request $request): JsonResponse
-    {
-        return response()->json($request->user());
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/refresh",
-     *     summary="Rafraîchir le token d'accès",
-     *     tags={"Authentification"},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"refresh_token"},
-     *             @OA\Property(property="refresh_token", type="string")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Token rafraîchi",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="token_type", type="string", example="Bearer"),
-     *             @OA\Property(property="expires_in", type="integer", example=31536000),
-     *             @OA\Property(property="access_token", type="string")
-     *         )
-     *     )
-     * )
-     */
-    public function refresh(Request $request): JsonResponse
-    {
-        $request->validate([
-            'refresh_token' => 'required|string',
-        ]);
-
-        // Cette fonctionnalité nécessite une implémentation plus avancée
-        // Pour l'instant, on retourne une erreur
-        return response()->json([
-            'message' => 'Fonctionnalité de rafraîchissement à implémenter'
-        ], 501);
-    }
 }

@@ -2,41 +2,38 @@
     "openapi": "3.0.0",
     "info": {
         "title": "API Orange Money",
-        "description": "API pour la gestion des comptes Orange Money",
+        "description": "API complète pour le système de paiement Orange Money avec authentification OTP",
         "version": "1.0.0"
     },
     "servers": [
         {
-            "url": "http://localhost:8000",
+            "url": "http://localhost:8001",
             "description": "Serveur de développement"
         }
     ],
     "paths": {
-        "/api/login": {
+        "/api/send-otp": {
             "post": {
                 "tags": [
                     "Authentification"
                 ],
-                "summary": "Connexion utilisateur",
-                "operationId": "a3b306d14572d1f4bd6c064b3233e7b8",
+                "summary": "Envoyer un OTP par SMS pour authentification",
+                "description": "Envoie un code OTP de 6 chiffres par SMS au numéro fourni. L'OTP est valide pendant 5 minutes.",
+                "operationId": "40f7591016f0d0a5ce412e71fee1f351",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "email",
-                                    "password"
+                                    "telephone"
                                 ],
                                 "properties": {
-                                    "email": {
+                                    "telephone": {
+                                        "description": "Numéro de téléphone sénégalais au format international",
                                         "type": "string",
-                                        "format": "email",
-                                        "example": "user@example.com"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "example": "password123"
+                                        "format": "phone",
+                                        "example": "+221771234567"
                                     }
                                 },
                                 "type": "object"
@@ -46,54 +43,14 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Connexion réussie",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "token_type": {
-                                            "type": "string",
-                                            "example": "Bearer"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer",
-                                            "example": 31536000
-                                        },
-                                        "access_token": {
-                                            "type": "string"
-                                        },
-                                        "refresh_token": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Identifiants invalides"
-                    }
-                }
-            }
-        },
-        "/api/logout": {
-            "post": {
-                "tags": [
-                    "Authentification"
-                ],
-                "summary": "Déconnexion utilisateur",
-                "operationId": "fe8f3429cd6979b3b4517e186505f9f9",
-                "responses": {
-                    "200": {
-                        "description": "Déconnexion réussie",
+                        "description": "OTP envoyé avec succès",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Déconnexion réussie"
+                                            "example": "OTP envoyé avec succès"
                                         }
                                     },
                                     "type": "object"
@@ -101,64 +58,71 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Non authentifié"
-                    }
-                },
-                "security": [
-                    {
-                        "passport": []
-                    }
-                ]
-            }
-        },
-        "/api/client": {
-            "get": {
-                "tags": [
-                    "Authentification"
-                ],
-                "summary": "Informations du client connecté",
-                "operationId": "9f1c53ceee113e04ff7709c819ce9bf5",
-                "responses": {
-                    "200": {
-                        "description": "Informations client",
+                    "400": {
+                        "description": "Erreur d'envoi ou numéro invalide",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Compte"
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Erreur lors de l'envoi de l'OTP"
+                                        }
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Non authentifié"
+                    "422": {
+                        "description": "Données de requête invalides",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
-                },
-                "security": [
-                    {
-                        "passport": []
-                    }
-                ]
+                }
             }
         },
-        "/api/refresh": {
+        "/api/verify-otp": {
             "post": {
                 "tags": [
                     "Authentification"
                 ],
-                "summary": "Rafraîchir le token d'accès",
-                "operationId": "2c27d311a2876560fcb5a754b556cdc5",
+                "summary": "Vérifier l'OTP et obtenir un token d'accès",
+                "description": "Vérifie l'OTP fourni et retourne un token d'accès Bearer si l'authentification réussit.",
+                "operationId": "7809ddcd47cab2525ccd43d1c2031bfd",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "refresh_token"
+                                    "telephone",
+                                    "otp"
                                 ],
                                 "properties": {
-                                    "refresh_token": {
-                                        "type": "string"
+                                    "telephone": {
+                                        "description": "Numéro de téléphone utilisé pour l'envoi de l'OTP",
+                                        "type": "string",
+                                        "format": "phone",
+                                        "example": "+221771234567"
+                                    },
+                                    "otp": {
+                                        "description": "Code OTP de 6 chiffres reçu par SMS",
+                                        "type": "string",
+                                        "example": "123456"
                                     }
                                 },
                                 "type": "object"
@@ -168,7 +132,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Token rafraîchi",
+                        "description": "Authentification réussie",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -178,11 +142,70 @@
                                             "example": "Bearer"
                                         },
                                         "expires_in": {
+                                            "description": "Durée de validité du token en secondes",
                                             "type": "integer",
                                             "example": 31536000
                                         },
                                         "access_token": {
+                                            "description": "Token d'accès Bearer",
                                             "type": "string"
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "nom": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                },
+                                                "telephone": {
+                                                    "type": "string"
+                                                },
+                                                "type_compte": {
+                                                    "type": "string"
+                                                },
+                                                "statut_compte": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "OTP invalide ou expiré",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "OTP invalide ou expiré"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Données de requête invalides",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "errors": {
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -279,6 +302,362 @@
                         "description": "Erreur de validation"
                     }
                 }
+            }
+        },
+        "/api/transactions": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Obtenir l'historique des transactions",
+                "description": "Récupère l'historique des transactions de l'utilisateur connecté avec possibilité de filtrage.",
+                "operationId": "6581469356772e7a74a0d79897544f1a",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Type de transaction (paiement, transfert)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "statut",
+                        "in": "query",
+                        "description": "Statut de la transaction (en_attente, reussie, echouee)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "date_debut",
+                        "in": "query",
+                        "description": "Date de début (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "date_fin",
+                        "in": "query",
+                        "description": "Date de fin (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Historique récupéré avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "transactions": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "filtres_appliques": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/paiements": {
+            "post": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Effectuer un paiement",
+                "description": "Effectue un paiement vers un marchand ou un numéro de téléphone.",
+                "operationId": "ad7f033cf73cd8a186cc48fe9735240c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "montant",
+                                    "methode_paiement",
+                                    "destinataire"
+                                ],
+                                "properties": {
+                                    "montant": {
+                                        "description": "Montant du paiement en FCFA",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 5000
+                                    },
+                                    "methode_paiement": {
+                                        "type": "string",
+                                        "enum": [
+                                            "code_marchand",
+                                            "numero_telephone"
+                                        ],
+                                        "example": "numero_telephone"
+                                    },
+                                    "destinataire": {
+                                        "description": "Code marchand ou numéro de téléphone",
+                                        "type": "string",
+                                        "example": "+221771234567"
+                                    },
+                                    "description": {
+                                        "description": "Description optionnelle",
+                                        "type": "string",
+                                        "example": "Paiement de facture"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Paiement effectué avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "transaction": {
+                                            "properties": {
+                                                "reference": {
+                                                    "type": "string"
+                                                },
+                                                "montant": {
+                                                    "type": "number"
+                                                },
+                                                "destinataire": {
+                                                    "type": "string"
+                                                },
+                                                "statut": {
+                                                    "type": "string"
+                                                },
+                                                "date_execution": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Échec du paiement",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Données invalides"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transferts": {
+            "post": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Effectuer un transfert d'argent",
+                "description": "Transfère de l'argent vers un autre compte Orange Money.",
+                "operationId": "cccb47a1bd0026c0793d17f11ead2722",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "montant",
+                                    "destinataire"
+                                ],
+                                "properties": {
+                                    "montant": {
+                                        "description": "Montant du transfert en FCFA",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 10000
+                                    },
+                                    "destinataire": {
+                                        "description": "Numéro de téléphone du destinataire",
+                                        "type": "string",
+                                        "example": "+221701234567"
+                                    },
+                                    "description": {
+                                        "description": "Description optionnelle",
+                                        "type": "string",
+                                        "example": "Transfert familial"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Transfert effectué avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "transaction": {
+                                            "properties": {
+                                                "reference": {
+                                                    "type": "string"
+                                                },
+                                                "montant": {
+                                                    "type": "number"
+                                                },
+                                                "destinataire": {
+                                                    "type": "string"
+                                                },
+                                                "statut": {
+                                                    "type": "string"
+                                                },
+                                                "date_execution": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Échec du transfert",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Données invalides"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/transactions/{reference}": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Obtenir les détails d'une transaction",
+                "description": "Récupère les détails complets d'une transaction spécifique.",
+                "operationId": "0f570a1d674b3fd94f59b4873cd0c38d",
+                "parameters": [
+                    {
+                        "name": "reference",
+                        "in": "path",
+                        "description": "Référence de la transaction",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails de la transaction",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "transaction": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Transaction introuvable",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         }
     },
@@ -412,19 +791,18 @@
             }
         },
         "securitySchemes": {
-            "passport": {
-                "type": "oauth2",
-                "flows": {
-                    "password": {
-                        "tokenUrl": "http://localhost:8000/api/login",
-                        "refreshUrl": "http://localhost:8000/api/login",
-                        "scopes": {}
-                    }
-                }
+            "bearerAuth": {
+                "type": "http",
+                "description": "Token d'accès Bearer obtenu via OTP",
+                "scheme": "bearer"
             }
         }
     },
     "tags": [
+        {
+            "name": "Transactions",
+            "description": "Gestion des transactions Orange Money - Paiements et transferts"
+        },
         {
             "name": "Authentification",
             "description": "Authentification"

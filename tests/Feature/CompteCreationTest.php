@@ -58,7 +58,7 @@ class CompteCreationTest extends TestCase
             'numero_compte' => 'OM003345678901',
             'nom' => 'Fatou Sow',
             'email' => 'fatou.sow@test.com',
-            'telephone' => '763456789',
+            'telephone' => '+221763456789',
             'type_compte' => 'courant',
             'statut_compte' => 'actif'
         ]);
@@ -73,8 +73,6 @@ class CompteCreationTest extends TestCase
 
         $response->assertStatus(422)
                 ->assertJsonValidationErrors([
-                    'id_client',
-                    'numero_compte',
                     'nom',
                     'email',
                     'telephone',
@@ -127,7 +125,7 @@ class CompteCreationTest extends TestCase
             'numero_compte' => 'OM006678901234',
             'nom' => 'Ousmane Faye',
             'email' => 'ousmane.faye@test.com',
-            'telephone' => '776789012',
+            'telephone' => '+221776789012',
             'type_compte' => 'courant',
             'statut_compte' => 'actif',
             'password' => bcrypt('Password123!')
@@ -139,7 +137,7 @@ class CompteCreationTest extends TestCase
             'numero_compte' => 'OM007789012345',
             'nom' => 'Ndeye Diagne',
             'email' => 'ndeye.diagne@test.com',
-            'telephone' => '776789012', // Téléphone déjà utilisé
+            'telephone' => '+221776789012', // Téléphone déjà utilisé
             'type_compte' => 'entreprise',
             'statut_compte' => 'actif',
             'password' => 'Password123!',

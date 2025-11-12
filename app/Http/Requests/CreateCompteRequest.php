@@ -24,17 +24,17 @@ class CreateCompteRequest extends FormRequest
     {
         return [
             'id_client' => [
-                'required',
+                'nullable',
                 'string',
                 'max:255',
                 Rule::unique('comptes', 'id_client')
             ],
             'numero_compte' => [
-                'required',
+                'sometimes',
                 'string',
                 'max:255',
                 Rule::unique('comptes', 'numero_compte'),
-                'regex:/^OM\d{12}$/' // Format Orange Money: OM suivi de 12 chiffres
+                'regex:/^OM\d{10,12}$/' // Format Orange Money: OM suivi de 10-12 chiffres
             ],
             'nom' => [
                 'required',
@@ -52,7 +52,7 @@ class CreateCompteRequest extends FormRequest
             'telephone' => [
                 'required',
                 'string',
-                'regex:/^(77|78|70|76|75)\d{7}$/', // Format sénégalais: 77/78/70/76/75 + 7 chiffres
+                'regex:/^\+221(77|78|70|76|75)\d{7}$/', // Format international sénégalais: +221 + 77/78/70/76/75 + 7 chiffres (total 9 chiffres après +221)
                 Rule::unique('comptes', 'telephone')
             ],
             'type_compte' => [
@@ -66,10 +66,7 @@ class CreateCompteRequest extends FormRequest
             'password' => [
                 'required',
                 'string',
-                'min:8',
-                'confirmed', // Si vous voulez ajouter confirmation de mot de passe
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/'
-                // Au moins une minuscule, une majuscule, un chiffre et un caractère spécial
+                'min:8'
             ]
         ];
     }
@@ -84,22 +81,20 @@ class CreateCompteRequest extends FormRequest
         return [
             'id_client.required' => 'L\'ID client est obligatoire.',
             'id_client.unique' => 'Cet ID client existe déjà.',
-            'numero_compte.required' => 'Le numéro de compte est obligatoire.',
             'numero_compte.unique' => 'Ce numéro de compte existe déjà.',
-            'numero_compte.regex' => 'Le numéro de compte doit être au format OM suivi de 12 chiffres.',
+            'numero_compte.regex' => 'Le numéro de compte doit être au format OM suivi de 10 à 12 chiffres.',
             'nom.required' => 'Le nom est obligatoire.',
             'nom.regex' => 'Le nom ne peut contenir que des lettres, espaces et tirets.',
             'email.required' => 'L\'email est obligatoire.',
             'email.email' => 'L\'email doit être valide.',
             'email.unique' => 'Cet email existe déjà.',
             'telephone.required' => 'Le numéro de téléphone est obligatoire.',
-            'telephone.regex' => 'Le numéro de téléphone doit être au format sénégalais (77/78/70/76/75 + 7 chiffres).',
+            'telephone.regex' => 'Le numéro de téléphone doit être au format sénégalais (+221 + 77/78/70/76/75 + 7 chiffres, total 9 chiffres après +221).',
             'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
             'type_compte.in' => 'Le type de compte doit être: courant, epargne ou entreprise.',
             'statut_compte.in' => 'Le statut doit être: actif, inactif, bloque ou suspendu.',
             'password.required' => 'Le mot de passe est obligatoire.',
             'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
-            'password.regex' => 'Le mot de passe doit contenir au moins une minuscule, une majuscule, un chiffre et un caractère spécial.',
         ];
     }
 
@@ -127,17 +122,39 @@ class CreateCompteRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Nettoyer le numéro de téléphone
+        // Nettoyer et formater le numéro de téléphone
         if ($this->telephone) {
+            $telephone = preg_replace('/\s+/', '', $this->telephone);
+            // Ajouter +221 si nécessaire
+            if (!str_starts_with($telephone, '+221')) {
+                if (preg_match('/^(77|78|70|76|75)/', $telephone)) {
+                    $telephone = '+221' . $telephone;
+                }
+            }
             $this->merge([
-                'telephone' => preg_replace('/\s+/', '', $this->telephone)
+                'telephone' => $telephone
             ]);
         }
 
-        // Générer automatiquement le numéro de compte si non fourni
-        if (!$this->numero_compte && $this->id_client) {
+        // Générer automatiquement l'ID client unique si non fourni
+        if (!$this->id_client) {
+            do {
+                $idClient = 'CLI-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
+            } while (\App\Models\Compte::where('id_client', $idClient)->exists());
+
             $this->merge([
-                'numero_compte' => 'OM' . str_pad($this->id_client, 12, '0', STR_PAD_LEFT)
+                'id_client' => $idClient
+            ]);
+        }
+
+        // Générer automatiquement le numéro de compte unique si non fourni
+        if (!$this->numero_compte) {
+            do {
+                $numeroCompte = 'OM' . str_pad(mt_rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
+            } while (\App\Models\Compte::where('numero_compte', $numeroCompte)->exists());
+
+            $this->merge([
+                'numero_compte' => $numeroCompte
             ]);
         }
     }

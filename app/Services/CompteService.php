@@ -32,13 +32,25 @@ class CompteService
     {
         $data['password'] = Hash::make($data['password']);
 
+        // Définir des valeurs par défaut si non fournies
+        $data['type_compte'] = $data['type_compte'] ?? 'courant';
+        $data['statut_compte'] = $data['statut_compte'] ?? 'actif';
+
+        // Générer automatiquement l'ID client et numéro de compte si non fournis
+        if (!isset($data['id_client'])) {
+            $data['id_client'] = 'CLI-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        }
+        if (!isset($data['numero_compte'])) {
+            $data['numero_compte'] = 'OM-' . str_pad(mt_rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
+        }
+
         $compte = $this->repository->create($data);
 
         // Déclencher l'événement CompteCréé
         event(new CompteCréé($compte));
 
         // Programmer l'envoi des notifications en file d'attente
-        // Temporairement désactivé pour éviter les erreurs SendGrid
+        // Désactivé pour les tests - les notifications externes causent des erreurs 500
         // SendNotification::dispatch($compte, 'email');
         // SendNotification::dispatch($compte, 'sms');
 
