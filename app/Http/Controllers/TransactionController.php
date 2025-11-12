@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @OA\Tag(
@@ -133,6 +134,9 @@ class TransactionController extends Controller
     public function effectuerPaiement(CreateTransactionRequest $request): JsonResponse
     {
         $validated = $request->validated();
+
+        // Debug: vérifier les données validées
+        Log::info('Données validées pour paiement:', $validated);
 
         try {
             $transaction = $this->transactionService->effectuerPaiement(
