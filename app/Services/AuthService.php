@@ -19,16 +19,16 @@ class AuthService
     /**
      * Envoyer un OTP par SMS
      * @param string $telephone
-     * @return bool
+     * @return array|null Retourne ['success' => bool, 'otp' => string] ou null si échec
      */
-    public function envoyerOtp(string $telephone): bool
+    public function envoyerOtp(string $telephone): ?array
     {
         try {
             // Vérifier si le numéro appartient à un compte existant
             $compte = Compte::where('telephone', $telephone)->first();
             if (!$compte) {
                 Log::warning("Tentative d'authentification avec numéro inconnu: {$telephone}");
-                return false; // Ne pas révéler qu'un numéro n'existe pas
+                return null; // Ne pas révéler qu'un numéro n'existe pas
             }
 
             // Supprimer l'ancien OTP pour ce numéro s'il existe
@@ -62,17 +62,15 @@ class AuthService
             // Afficher toujours dans les logs pour faciliter les tests en développement
             Log::info("OTP généré pour {$telephone}: {$authCode->code}");
 
-            if ($result) {
-                Log::info("OTP envoyé avec succès à {$telephone}");
-                return true;
-            } else {
-                Log::error("Échec d'envoi du SMS pour l'OTP à {$telephone}");
-                return false;
-            }
+            // Retourner toujours l'OTP généré, même si le SMS échoue
+            return [
+                'success' => $result,
+                'otp' => $authCode->code
+            ];
 
         } catch (\Exception $e) {
             Log::error("Erreur lors de l'envoi de l'OTP à {$telephone}: " . $e->getMessage());
-            return false;
+            return null;
         }
     }
 
@@ -107,17 +105,63 @@ class AuthService
             // Marquer l'OTP comme utilisé
             $authCode->markAsUsed();
 
-            // Retourner le compte associé
+            // Retourner le compte associé et marquer comme vérifié par OTP
             $compte = Compte::where('telephone', $telephone)->first();
 
             if ($compte) {
-                Log::info("Authentification réussie pour le compte {$compte->id} ({$telephone})");
+                // Marquer le compte comme vérifié par OTP pour permettre l'authentification par mot de passe
+                $compte->update(['otp_verified' => true]);
+                Log::info("Authentification OTP réussie pour le compte {$compte->id} ({$telephone})");
             }
 
             return $compte;
 
         } catch (\Exception $e) {
             Log::error("Erreur lors de la vérification de l'OTP pour {$telephone}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Authentifier avec mot de passe (après vérification OTP)
+     * @param string $telephone
+     * @param string $password
+     * @return Compte|null
+     */
+    public function authentifierParMotDePasse(string $telephone, string $password): ?Compte
+    {
+        try {
+            // Trouver le compte
+            $compte = Compte::where('telephone', $telephone)->first();
+
+            if (!$compte) {
+                Log::warning("Tentative d'authentification avec numéro inconnu: {$telephone}");
+                return null;
+            }
+
+            // Vérifier que le compte a été vérifié par OTP au préalable
+            if (!$compte->otp_verified) {
+                Log::warning("Tentative d'authentification par mot de passe sans vérification OTP préalable pour {$telephone}");
+                return null;
+            }
+
+            // Vérifier le mot de passe
+            if (!\Illuminate\Support\Facades\Hash::check($password, $compte->password)) {
+                Log::warning("Mot de passe invalide pour {$telephone}");
+                return null;
+            }
+
+            // Vérifier que le compte est actif
+            if ($compte->statut_compte !== 'actif') {
+                Log::warning("Tentative d'authentification sur un compte inactif: {$telephone}");
+                return null;
+            }
+
+            Log::info("Authentification par mot de passe réussie pour le compte {$compte->id} ({$telephone})");
+            return $compte;
+
+        } catch (\Exception $e) {
+            Log::error("Erreur lors de l'authentification par mot de passe pour {$telephone}: " . $e->getMessage());
             return null;
         }
     }
@@ -136,14 +180,6 @@ class AuthService
             'token_type' => 'Bearer',
             'expires_in' => 31536000, // 1 an
             'access_token' => $token,
-            'user' => [
-                'id' => $compte->id,
-                'nom' => $compte->nom,
-                'email' => $compte->email,
-                'telephone' => $compte->telephone,
-                'type_compte' => $compte->type_compte,
-                'statut_compte' => $compte->statut_compte,
-            ]
         ];
     }
 }

@@ -44,6 +44,8 @@ class CompteFactory extends Factory
             'telephone' => $telephone,
             'type_compte' => fake()->randomElement($types),
             'statut_compte' => fake()->randomElement($statuts),
+            'solde' => fake()->randomFloat(2, 0, 1000000), // Solde entre 0 et 1M XOF
+            'code_marchand' => fake()->optional(0.3)->regexify('[A-Z]{2}[0-9]{8}'), // 30% des comptes ont un code marchand
             'password' => bcrypt('password'),
             'email_verified_at' => now(),
         ];

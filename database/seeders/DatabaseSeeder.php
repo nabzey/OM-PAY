@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             'telephone' => '+221773657435',
             'type_compte' => 'courant',
             'statut_compte' => 'actif',
+            'solde' => 50000.00,
         ]);
 
         \App\Models\Compte::factory()->create([
@@ -34,6 +35,8 @@ class DatabaseSeeder extends Seeder
             'telephone' => '+221778765432',
             'type_compte' => 'entreprise',
             'statut_compte' => 'actif',
+            'solde' => 250000.00,
+            'code_marchand' => 'AB12345678',
         ]);
 
         \App\Models\Compte::factory()->create([
@@ -44,6 +47,7 @@ class DatabaseSeeder extends Seeder
             'telephone' => '+221769876543',
             'type_compte' => 'epargne',
             'statut_compte' => 'inactif',
+            'solde' => 0.00,
         ]);
 
         \App\Models\Compte::factory()->create([
@@ -54,6 +58,7 @@ class DatabaseSeeder extends Seeder
             'telephone' => '+2217768069690',
             'type_compte' => 'courant',
             'statut_compte' => 'actif',
+            'solde' => 150000.00,
         ]);
     }
 }

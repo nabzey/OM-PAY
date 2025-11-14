@@ -6,32 +6,32 @@ use App\Http\Controllers\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
 
-// Routes publiques (pas besoin d'authentification)
 Route::post('/comptes', [CompteController::class, 'store']);
 Route::post('/send-otp', [AuthController::class, 'sendOtp']);
 Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/login', [AuthController::class, 'login']);
 
-// Routes protégées (nécessitent authentification Bearer)
 Route::middleware('auth:api')->group(function () {
+    // Dashboard avec solde intégré
+    Route::get('/dashboard', [AuthController::class, 'dashboard']);
+
+    // Comptes
+    Route::get('/compte/solde', [CompteController::class, 'solde']);
+
     // Transactions
-    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/transactions', [TransactionController::class, 'getTransactionsByCompte']);
+    Route::post('/transactions/paiement', [TransactionController::class, 'effectuerPaiement']);
+    Route::post('/transactions/transfert', [TransactionController::class, 'effectuerTransfert']);
+
+    // Historique détaillé (optionnel)
     Route::get('/transactions/{reference}', [TransactionController::class, 'show']);
-    Route::post('/paiements', [TransactionController::class, 'effectuerPaiement']);
-    Route::post('/transferts', [TransactionController::class, 'effectuerTransfert']);
 });
 
-// Ancienne route (pour compatibilité)
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+Route::get('/qr-code/{codeMarchand}', [TransactionController::class, 'genererQrCode']);
+
+Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::middleware('auth:api')->get('/dashboard', [AuthController::class, 'dashboard']);

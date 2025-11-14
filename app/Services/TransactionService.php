@@ -24,6 +24,9 @@ class TransactionService
     public function effectuerPaiement(Compte $compte, array $data): Transaction
     {
         return DB::transaction(function () use ($compte, $data) {
+            // Vérifier que le compte est actif
+            $this->verifierValiditeCompte($compte);
+
             // Créer la transaction
             $transaction = Transaction::create([
                 'reference' => Transaction::generateReference(),
@@ -66,6 +69,9 @@ class TransactionService
     public function effectuerTransfert(Compte $compte, array $data): Transaction
     {
         return DB::transaction(function () use ($compte, $data) {
+            // Vérifier que le compte est actif
+            $this->verifierValiditeCompte($compte);
+
             // Vérifier que le destinataire existe
             $destinataire = Compte::where('telephone', $data['destinataire'])->first();
             if (!$destinataire) {
@@ -112,10 +118,32 @@ class TransactionService
     }
 
     /**
+     * Vérifier la validité du compte pour les transactions
+     */
+    private function verifierValiditeCompte(Compte $compte): void
+    {
+        if ($compte->statut_compte !== 'actif') {
+            throw new Exception('Le compte doit être actif pour effectuer des transactions');
+        }
+
+        // Vérifier que le solde est suffisant (au moins 100 FCFA)
+        $soldeActuel = $compte->solde_calculé;
+        if ($soldeActuel < 100) {
+            throw new Exception('Solde insuffisant pour effectuer des transactions');
+        }
+    }
+
+    /**
      * Traiter le paiement (simulation)
      */
     private function traiterPaiement(Transaction $transaction, array $data): void
     {
+        // Vérifier que le compte a suffisamment de fonds
+        $soldeActuel = $transaction->compte->solde_calculé;
+        if ($soldeActuel < $transaction->montant) {
+            throw new Exception('Solde insuffisant pour effectuer ce paiement');
+        }
+
         // Simulation - En production, intégrer avec l'API Orange Money
         // Vérifier le code marchand ou le numéro de téléphone
         if ($transaction->methode_paiement === 'code_marchand') {
@@ -125,7 +153,7 @@ class TransactionService
             }
         } elseif ($transaction->methode_paiement === 'numero_telephone') {
             // Vérifier que le numéro est valide (simulation)
-            if (!preg_match('/^\+221/', $transaction->destinataire)) {
+            if (!preg_match('/^\+221(77|78|70|76|75)\d{7}$/', $transaction->destinataire)) {
                 throw new Exception('Numéro de téléphone invalide');
             }
         }
@@ -139,8 +167,18 @@ class TransactionService
      */
     private function traiterTransfert(Transaction $transaction, Compte $destinataire, array $data): void
     {
-        // Simulation - En production, intégrer avec l'API Orange Money
+        // Vérifier que le compte expéditeur a suffisamment de fonds
+        $soldeActuel = $transaction->compte->solde_calculé;
+        if ($soldeActuel < $transaction->montant) {
+            throw new Exception('Solde insuffisant pour effectuer ce transfert');
+        }
+
         // Vérifier que le destinataire peut recevoir le transfert
+        if ($destinataire->statut_compte !== 'actif') {
+            throw new Exception('Le compte destinataire n\'est pas actif');
+        }
+
+        // Simulation - En production, intégrer avec l'API Orange Money
 
         // Simuler un délai de traitement
         sleep(1);

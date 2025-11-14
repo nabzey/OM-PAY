@@ -43,7 +43,10 @@ class Compte extends Authenticatable
         'telephone',
         'type_compte',
         'statut_compte',
+        'solde',
+        'code_marchand',
         'password',
+        'otp_verified',
     ];
 
     /**
@@ -64,5 +67,35 @@ class Compte extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'solde' => 'decimal:2',
+        'otp_verified' => 'boolean',
     ];
+
+    /**
+     * Relation avec les transactions
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * Calculer le solde en tenant compte des transactions réussies
+     */
+    public function getSoldeCalculéAttribute()
+    {
+        $soldeInitial = $this->solde ?? 0;
+
+        $totalCredits = $this->transactions()
+            ->reussies()
+            ->whereIn('type', ['depot', 'transfert'])
+            ->sum('montant');
+
+        $totalDebits = $this->transactions()
+            ->reussies()
+            ->whereIn('type', ['retrait', 'paiement'])
+            ->sum('montant');
+
+        return $soldeInitial + $totalCredits - $totalDebits;
+    }
 }

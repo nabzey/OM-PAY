@@ -23,35 +23,45 @@ class CreateTransactionRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
+            'type' => 'sometimes|in:paiement,transfert',
             'montant' => 'required|numeric|min:100|max:5000000',
             'devise' => 'sometimes|string|size:3|in:XOF,USD,EUR',
             'description' => 'nullable|string|max:255',
             'metadata' => 'nullable|array',
         ];
 
-        // Règles spécifiques selon l'URI de la route
-        $uri = $this->getRequestUri();
+        // Règles spécifiques selon le type de transaction
+        $type = $this->input('type', 'paiement'); // Par défaut paiement
 
-        if (str_contains($uri, '/paiements')) {
+        if ($type === 'paiement') {
             $rules = array_merge($rules, [
                 'methode_paiement' => 'required|in:code_marchand,numero_telephone',
-                'destinataire' => 'required|string',
             ]);
-        }
 
-        if (str_contains($uri, '/transferts')) {
+            // Validation conditionnelle basée sur la méthode de paiement
+            if ($this->input('methode_paiement') === 'code_marchand') {
+                $rules['destinataire'] = 'required|string|min:6|max:20';
+            } elseif ($this->input('methode_paiement') === 'numero_telephone') {
+                $rules['destinataire'] = 'required|string';
+                // Validation personnalisée pour le numéro de téléphone
+                $destinataire = $this->input('destinataire');
+                if ($destinataire && !preg_match('/^\+221(77|78|70|76|75)\d{7}$/', $destinataire)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'destinataire' => ['Le numéro de téléphone destinataire doit être au format sénégalais valide.']
+                    ]);
+                }
+            }
+        } elseif ($type === 'transfert') {
             $rules = array_merge($rules, [
                 'destinataire' => 'required|string',
             ]);
 
             // Vérifier que le destinataire n'est pas le même que l'expéditeur
             $rules['destinataire'] .= '|different:auth.user.telephone';
-        }
 
-        // Validation personnalisée pour le numéro de téléphone destinataire
-        if (str_contains($uri, '/transferts')) {
+            // Validation personnalisée pour le numéro de téléphone destinataire
             $destinataire = $this->input('destinataire');
-            if (!preg_match('/^\+221(77|78|70|76|75)\d{7}$/', $destinataire)) {
+            if ($destinataire && !preg_match('/^\+221(77|78|70|76|75)\d{7}$/', $destinataire)) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'destinataire' => ['Le numéro de téléphone destinataire doit être au format sénégalais valide.']
                 ]);

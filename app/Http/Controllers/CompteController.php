@@ -58,6 +58,33 @@ class CompteController extends Controller
         return response()->json(new CompteResource($compte), 201);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/api/compte/solde",
+     *     summary="Obtenir le solde du compte connecté",
+     *     tags={"Comptes"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Solde du compte",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="solde", type="number", format="float", description="Solde calculé du compte")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Non authentifié",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     )
+     * )
+     */
+    public function solde(Request $request): JsonResponse
+    {
+        $solde = $request->user()->solde_calculé;
 
+        return response()->json(['solde' => $solde]);
+    }
 
 }

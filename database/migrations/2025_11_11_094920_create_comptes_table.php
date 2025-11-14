@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('telephone')->unique();
             $table->enum('type_compte', ['courant', 'epargne', 'entreprise'])->default('courant');
             $table->enum('statut_compte', ['actif', 'inactif', 'bloque', 'suspendu'])->default('actif');
+            $table->decimal('solde', 15, 2)->default(0);
+            $table->string('code_marchand')->nullable()->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
